@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 187653ceafbd2fd4f956b4a6e0f9a24c
+guid: 84061da8ccc2e9749ae1f438394ffb6b
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 5305926146960997360
-    second: 55944856-game-background-2d-game-application-vector-design_0
+      213: -3172144083348534077
+    second: rainbow-unicorn-background-with-clouds-and-stars-pastel-color-sky-magical-landscape-abstract-fabulous-pattern-cute-candy-wallpaper-vector_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -113,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: 55944856-game-background-2d-game-application-vector-design_0
+      name: rainbow-unicorn-background-with-clouds-and-stars-pastel-color-sky-magical-landscape-abstract-fabulous-pattern-cute-candy-wallpaper-vector_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 1300
-        height: 649
+        width: 300
+        height: 200
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 0fb311af7bf62a940800000000000000
-      internalID: 5305926146960997360
+      spriteID: 3cc47af43c74af3d0800000000000000
+      internalID: -3172144083348534077
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      55944856-game-background-2d-game-application-vector-design_0: 5305926146960997360
+      rainbow-unicorn-background-with-clouds-and-stars-pastel-color-sky-magical-landscape-abstract-fabulous-pattern-cute-candy-wallpaper-vector_0: -3172144083348534077
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
