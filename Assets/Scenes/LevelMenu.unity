@@ -2419,21 +2419,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a7e108320f24b34db692b19d24ebdc4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  level1: {fileID: 1022603232}
-  level2: {fileID: 50261998}
-  level3: {fileID: 429357779}
-  level4: {fileID: 805716805}
-  level5: {fileID: 471216714}
-  level6: {fileID: 1567656928}
-  level7: {fileID: 785450349}
-  level8: {fileID: 1491167618}
-  level9: {fileID: 2117639153}
-  level10: {fileID: 1784632703}
-  level11: {fileID: 2020705364}
-  level12: {fileID: 2090654280}
-  level13: {fileID: 1779900564}
-  level14: {fileID: 33519585}
-  level15: {fileID: 1091087326}
+  nextButton: {fileID: 0}
+  menuButton: {fileID: 0}
 --- !u!1 &1022603230
 GameObject:
   m_ObjectHideFlags: 0
@@ -2757,7 +2744,7 @@ Transform:
   m_GameObject: {fileID: 1284340141}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.23, y: 0.02, z: 0}
+  m_LocalPosition: {x: 0.23, y: -0.58, z: 0}
   m_LocalScale: {x: 2.5084248, y: 0.895866, z: 1.7566}
   m_ConstrainProportionsScale: 0
   m_Children: []

@@ -1,43 +1,57 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-public class CanvasManager : MonoBehaviour
+
+public class LevelCompleteManager : MonoBehaviour
 {
-    public Button level1;
-    public Button level2;
-    public Button level3;
-    public Button level4;
-    public Button level5;
-    public Button level6;
-    public Button level7;
-    public Button level8;
-    public Button level9;
-    public Button level10;
-    public Button level11;
-    public Button level12;
-    public Button level13;
-    public Button level14;
-    public Button level15;
-    void Start()
+    public Button nextButton;
+    public Button menuButton;
+
+    private void Start()
     {
-        level1.onClick.AddListener(() => LoadLevel("1"));
-        level2.onClick.AddListener(() => LoadLevel("2"));
-        level3.onClick.AddListener(() => LoadLevel("3"));
-        level4.onClick.AddListener(() => LoadLevel("4"));
-        level5.onClick.AddListener(() => LoadLevel("5"));
-        level6.onClick.AddListener(() => LoadLevel("6"));
-        level7.onClick.AddListener(() => LoadLevel("7"));
-        level8.onClick.AddListener(() => LoadLevel("8"));
-        level9.onClick.AddListener(() => LoadLevel("9"));
-        level10.onClick.AddListener(() => LoadLevel("10"));
-        level11.onClick.AddListener(() => LoadLevel("11"));
-        level12.onClick.AddListener(() => LoadLevel("12"));
-        level13.onClick.AddListener(() => LoadLevel("13"));
-        level14.onClick.AddListener(() => LoadLevel("14"));
-        level15.onClick.AddListener(() => LoadLevel("15"));
+        nextButton.onClick.AddListener(LoadNextLevel);
+        menuButton.onClick.AddListener(GoToMenu);
+
+        nextButton.gameObject.SetActive(false);
     }
-    public void LoadLevel(string levelName)
+
+    public void OnLevelCompleted()
     {
-        SceneManager.LoadScene(levelName);
+        int currentLevel = int.Parse(SceneManager.GetActiveScene().name);
+
+        UnlockNextLevel(currentLevel);
+
+        SceneManager.LoadScene("LevelMenu");
+    }
+
+    void LoadNextLevel()
+    {
+        int currentLevel = int.Parse(SceneManager.GetActiveScene().name);
+        int nextLevel = currentLevel + 1;
+
+        if (Application.CanStreamedLevelBeLoaded(nextLevel.ToString()))
+        {
+            SceneManager.LoadScene(nextLevel.ToString());
+        }
+        else
+        {
+            Debug.Log("Tebrikler! Tüm levelleri bitirdin 🎉");
+        }
+    }
+
+    void GoToMenu()
+    {
+        SceneManager.LoadScene("LevelMenu");
+    }
+
+    void UnlockNextLevel(int currentLevel)
+    {
+        int unlockedLevel = PlayerPrefs.GetInt("UnlockedLevel", 1);
+
+        if (currentLevel >= unlockedLevel)
+        {
+            PlayerPrefs.SetInt("UnlockedLevel", currentLevel + 1);
+            PlayerPrefs.Save();
+        }
     }
 }
