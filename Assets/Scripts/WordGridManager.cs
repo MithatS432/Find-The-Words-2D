@@ -10,24 +10,26 @@ public class WordGridManager : MonoBehaviour
         public string word;
         public Vector2Int startPos;
         public bool isHorizontal = true;
+
+        [HideInInspector] public List<Vector2Int> positions = new List<Vector2Int>();
+        [HideInInspector] public bool isFound = false;
     }
 
     [Header("Grid Ayarları")]
-    public int gridWidth = 5;
-    public int gridHeight = 5;
+    public int gridWidth = 6;
+    public int gridHeight = 6;
 
     [Header("UI Ayarları")]
     public GameObject cellPrefab;
     public Transform gridParent;
-    public Vector2 cellSize = new Vector2(30, 30);
+    public Vector2 cellSize = new Vector2(60, 60);
     public float cellSpacing = 5f;
 
     [Header("Kelime Listesi")]
     public List<WordData> wordsToPlace;
 
     private GameObject[,] gridCells;
-    private string selectedWord = "";
-    private List<GameObject> selectedCells = new List<GameObject>();
+    private List<Vector2Int> selectedPositions = new List<Vector2Int>();
 
     void Start()
     {
@@ -39,15 +41,11 @@ public class WordGridManager : MonoBehaviour
     {
         gridCells = new GameObject[gridWidth, gridHeight];
 
-        // Grid toplam boyutu
         float totalWidth = gridWidth * cellSize.x + (gridWidth - 1) * cellSpacing;
         float totalHeight = gridHeight * cellSize.y + (gridHeight - 1) * cellSpacing;
 
-        // Grid’in başlangıç pozisyonu (merkezden ortalanmış, biraz yukarı kaydırılmış)
-        Vector2 startPos = new Vector2(
-            -totalWidth / 2f + cellSize.x / 2f,   // X pivot düzeltmesi
-            totalHeight / 2f - cellSize.y / 2f - 50f // Y pivot ve yukarı kaydırma
-        );
+        Vector2 startPos = new Vector2(-totalWidth / 2f + cellSize.x / 2f,
+                                       totalHeight / 2f - cellSize.y / 2f);
 
         for (int y = 0; y < gridHeight; y++)
         {
@@ -64,7 +62,7 @@ public class WordGridManager : MonoBehaviour
                 newCell.name = $"Cell_{x}_{y}";
                 gridCells[x, y] = newCell;
 
-                // Cell scripti ayarla
+                // Cell scripti bağla
                 Cell cellScript = newCell.GetComponent<Cell>();
                 if (cellScript != null)
                 {
@@ -76,11 +74,12 @@ public class WordGridManager : MonoBehaviour
         }
     }
 
-
     void PlaceWords()
     {
         foreach (var wordData in wordsToPlace)
         {
+            wordData.positions.Clear();
+
             for (int i = 0; i < wordData.word.Length; i++)
             {
                 int x = wordData.startPos.x + (wordData.isHorizontal ? i : 0);
@@ -91,6 +90,8 @@ public class WordGridManager : MonoBehaviour
                     Text cellText = gridCells[x, y].GetComponentInChildren<Text>();
                     if (cellText != null)
                         cellText.text = wordData.word[i].ToString();
+
+                    wordData.positions.Add(new Vector2Int(x, y));
                 }
             }
         }
@@ -98,76 +99,96 @@ public class WordGridManager : MonoBehaviour
 
     public void OnCellClicked(int x, int y)
     {
-        GameObject cell = gridCells[x, y];
-        Text cellText = cell.GetComponentInChildren<Text>();
-        if (cellText == null || string.IsNullOrEmpty(cellText.text))
-            return;
+        Vector2Int pos = new Vector2Int(x, y);
 
-        selectedWord += cellText.text;
-        selectedCells.Add(cell);
+        // Tekrar seçmesin
+        if (selectedPositions.Contains(pos)) return;
 
-        Image img = cell.GetComponent<Image>();
-        if (img != null)
-            img.color = Color.yellow;
+        selectedPositions.Add(pos);
+        gridCells[x, y].GetComponent<Image>().color = Color.yellow;
 
-        CheckWord();
+        CheckSelectedWord();
     }
 
-    void CheckWord()
+    void CheckSelectedWord()
     {
         foreach (var wordData in wordsToPlace)
         {
-            if (selectedWord.Equals(wordData.word, System.StringComparison.OrdinalIgnoreCase))
+            if (!wordData.isFound && MatchWord(wordData))
             {
-                foreach (var cell in selectedCells)
+                wordData.isFound = true;
+
+                // yeşile boya
+                foreach (var pos in wordData.positions)
                 {
-                    Image img = cell.GetComponent<Image>();
-                    if (img != null)
-                        img.color = Color.green;
+                    gridCells[pos.x, pos.y].GetComponent<Image>().color = Color.green;
                 }
 
-                selectedCells.Clear();
-                selectedWord = "";
+                selectedPositions.Clear();
 
-                CheckLevelComplete();
+                // Level bitti mi kontrol
+                if (AllWordsFound())
+                {
+                    Debug.Log("Level tamamlandı!");
+                    LevelManager levelManager = FindAnyObjectByType<LevelManager>();
+                    if (levelManager != null)
+                        levelManager.OnLevelCompleted();
+                }
+
                 return;
             }
         }
     }
 
-    void CheckLevelComplete()
+    bool MatchWord(WordData wordData)
     {
-        bool allFound = true;
+        if (wordData.positions.Count != selectedPositions.Count) return false;
 
+        foreach (var pos in wordData.positions)
+        {
+            if (!selectedPositions.Contains(pos))
+                return false;
+        }
+        return true;
+    }
+
+    bool AllWordsFound()
+    {
         foreach (var wordData in wordsToPlace)
         {
-            bool found = false;
-            for (int y = 0; y < gridHeight; y++)
+            if (!wordData.isFound) return false;
+        }
+        return true;
+    }
+    public void CheckSubmittedWord(string word)
+    {
+        foreach (var wordData in wordsToPlace)
+        {
+            if (!wordData.isFound && wordData.word.Equals(word, System.StringComparison.OrdinalIgnoreCase))
             {
-                for (int x = 0; x < gridWidth; x++)
+                wordData.isFound = true;
+
+                // gridde kelimeyi yeşile boya
+                foreach (var pos in wordData.positions)
                 {
-                    Text t = gridCells[x, y].GetComponentInChildren<Text>();
-                    if (t != null && t.text.Equals(wordData.word[0].ToString(), System.StringComparison.OrdinalIgnoreCase))
-                    {
-                        found = true;
-                        break;
-                    }
+                    gridCells[pos.x, pos.y].GetComponent<Image>().color = Color.green;
                 }
-                if (found) break;
-            }
-            if (!found)
-            {
-                allFound = false;
-                break;
+
+                Debug.Log("Kelime bulundu: " + word);
+
+                if (AllWordsFound())
+                {
+                    Debug.Log("Level tamamlandı!");
+                    LevelManager levelManager = FindAnyObjectByType<LevelManager>();
+                    if (levelManager != null)
+                        levelManager.OnLevelCompleted();
+                }
+
+                return;
             }
         }
 
-        if (allFound)
-        {
-            Debug.Log("Level tamamlandı!");
-            LevelManager levelManager = Object.FindAnyObjectByType<LevelManager>();
-            if (levelManager != null)
-                levelManager.OnLevelCompleted();
-        }
+        Debug.Log("Yanlış kelime: " + word);
     }
+
 }

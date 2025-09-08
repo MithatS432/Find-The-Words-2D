@@ -4,7 +4,16 @@ using UnityEngine.UI;
 
 public class LevelManager : MonoBehaviour
 {
+    [System.Serializable]
+    public class LevelData
+    {
+        public string word;  // doğru kelime (örn: "CAT")
+        public int extraLettersCount; // fazladan harf sayısı (örn: 3)
+    }
+
     public Button[] levelButtons;
+    public LevelData[] levels;
+
 
     void Start()
     {

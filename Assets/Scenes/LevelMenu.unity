@@ -717,6 +717,17 @@ MonoBehaviour:
   - {fileID: 1779900564}
   - {fileID: 33519585}
   - {fileID: 1091087326}
+  levels:
+  - word: CAT
+    extraLettersCount: 3
+  - word: DOG
+    extraLettersCount: 3
+  - word: NAP
+    extraLettersCount: 3
+  - word: CAN
+    extraLettersCount: 3
+  - word: GYM
+    extraLettersCount: 3
 --- !u!1 &271383751
 GameObject:
   m_ObjectHideFlags: 0
