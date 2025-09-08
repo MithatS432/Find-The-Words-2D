@@ -8,7 +8,6 @@ public class Cell : MonoBehaviour, IPointerClickHandler
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (gridManager != null)
-            gridManager.OnCellClicked(x, y);
+        gridManager?.OnCellClicked(x, y);
     }
 }

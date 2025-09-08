@@ -4,64 +4,71 @@ using UnityEngine.UI;
 
 public class LetterCircleManager : MonoBehaviour
 {
-    [Header("UI Ayarları")]
     public GameObject letterButtonPrefab;
     public Transform circleParent;
     public float radius = 150f;
+    public Button submitButton;
+    public Button clearButton;
 
-    [HideInInspector] public string currentWord = "";
     private List<Button> letterButtons = new List<Button>();
+    private string currentWord = "";
     private WordGridManager gridManager;
 
     void Start()
     {
-        gridManager = FindAnyObjectByType<WordGridManager>();
+        gridManager = Object.FindAnyObjectByType<WordGridManager>();
+
+        if (submitButton != null)
+            submitButton.onClick.AddListener(SubmitWord);
+
+        if (clearButton != null)
+            clearButton.onClick.AddListener(ClearSelection);
     }
 
-    public void SetupLetters(string letters)
+    public void CreateCircle(string letters)
     {
-        // önceki harfleri temizle
-        foreach (var btn in letterButtons)
-        {
-            Destroy(btn.gameObject);
-        }
+        foreach (var btn in letterButtons) Destroy(btn.gameObject);
         letterButtons.Clear();
-        currentWord = "";
 
-        // daireye harfleri yerleştir
-        float angleStep = 360f / letters.Length;
-        for (int i = 0; i < letters.Length; i++)
+        int count = letters.Length;
+        float angleStep = 360f / count;
+
+        for (int i = 0; i < count; i++)
         {
+            GameObject btnObj = Instantiate(letterButtonPrefab, circleParent);
+            RectTransform rt = btnObj.GetComponent<RectTransform>();
             float angle = i * angleStep * Mathf.Deg2Rad;
-            Vector2 pos = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+            rt.anchoredPosition = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
 
-            GameObject newBtnObj = Instantiate(letterButtonPrefab, circleParent);
-            RectTransform rt = newBtnObj.GetComponent<RectTransform>();
-            rt.anchoredPosition = pos;
-
-            Button btn = newBtnObj.GetComponent<Button>();
-            Text txt = newBtnObj.GetComponentInChildren<Text>();
-            txt.text = letters[i].ToString();
-
-            int index = i;
-            btn.onClick.AddListener(() => OnLetterClicked(letters[index]));
-
+            btnObj.GetComponentInChildren<Text>().text = letters[i].ToString();
+            char letter = letters[i];
+            Button btn = btnObj.GetComponent<Button>();
+            btn.onClick.AddListener(() => OnLetterClicked(letter));
             letterButtons.Add(btn);
         }
     }
 
-    void OnLetterClicked(char c)
+    void OnLetterClicked(char letter)
     {
-        currentWord += c;
+        currentWord += letter;
         Debug.Log("Seçilen kelime: " + currentWord);
     }
 
-    public void SubmitWord()
+    void SubmitWord()
     {
-        if (gridManager != null)
+        if (!string.IsNullOrEmpty(currentWord) && gridManager != null)
         {
-            gridManager.CheckSubmittedWord(currentWord);
+            if (gridManager.CheckWord(currentWord))
+                Debug.Log("Doğru kelime bulundu: " + currentWord);
+            else
+                Debug.Log("Yanlış kelime: " + currentWord);
         }
         currentWord = "";
+    }
+
+    public void ClearSelection()
+    {
+        currentWord = "";
+        gridManager?.ClearSelection();
     }
 }

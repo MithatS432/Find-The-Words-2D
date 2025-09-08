@@ -682,8 +682,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 128690702}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.01, y: -0.54, z: 0.031246632}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.010009766, y: -0.5399933, z: 0.031246632}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -718,16 +718,14 @@ MonoBehaviour:
   - {fileID: 33519585}
   - {fileID: 1091087326}
   levels:
-  - word: CAT
-    extraLettersCount: 3
-  - word: DOG
-    extraLettersCount: 3
-  - word: NAP
-    extraLettersCount: 3
-  - word: CAN
-    extraLettersCount: 3
-  - word: GYM
-    extraLettersCount: 3
+  - words:
+    - CAT
+    - CAN
+    - CAR
+    - COW
+    - TOY
+    extraLettersCount: 10
+    gridSize: {x: 8, y: 8}
 --- !u!1 &271383751
 GameObject:
   m_ObjectHideFlags: 0
