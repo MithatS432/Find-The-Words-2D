@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class WordGridManager : MonoBehaviour
 {
@@ -29,13 +30,25 @@ public class WordGridManager : MonoBehaviour
 
     void Start()
     {
+        // LevelManager'ın hazır olmasını bekle
+        if (LevelManager.Instance == null)
+        {
+            Debug.LogError("LevelManager Instance bulunamadı!");
+            return;
+        }
+
         var levelData = LevelManager.Instance.GetCurrentLevelData();
+        if (levelData == null)
+        {
+            Debug.LogError("LevelData null dönüyor! LevelManager ayarlarını kontrol et.");
+            return;
+        }
+
         gridWidth = levelData.gridSize.x;
         gridHeight = levelData.gridSize.y;
 
         CreateGrid();
         PlaceAllWords(levelData.words);
-
         FillEmptyCells(levelData.extraLettersCount);
     }
 
@@ -126,7 +139,26 @@ public class WordGridManager : MonoBehaviour
             int x = start.x + (horizontal ? i : 0);
             int y = start.y + (horizontal ? 0 : i);
 
-            if (gridCells[x, y].GetComponentInChildren<Text>().text != "")
+            if (x >= gridWidth || y >= gridHeight)
+                return false;
+
+            if (gridCells == null)
+            {
+                Debug.LogError("gridCells dizisi null!");
+                return false;
+            }
+            if (gridCells[x, y] == null)
+            {
+                Debug.LogError($"gridCells[{x},{y}] null!");
+                return false;
+            }
+            var textComponent = gridCells[x, y].GetComponentInChildren<Text>();
+            if (textComponent == null)
+            {
+                Debug.LogError($"gridCells[{x},{y}] içinde Text bileşeni yok!");
+                return false;
+            }
+            if (textComponent.text != "")
                 return false;
         }
         return true;
@@ -152,11 +184,11 @@ public class WordGridManager : MonoBehaviour
         foreach (var word in wordsToPlace)
             letters.AddRange(word.word.ToCharArray());
 
-        string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        string alphabet = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ";
         for (int i = 0; i < extraLetters; i++)
             letters.Add(alphabet[Random.Range(0, alphabet.Length)]);
 
-        // Shuffle
+        // Karıştır
         for (int i = 0; i < letters.Count; i++)
         {
             char tmp = letters[i];
