@@ -718,15 +718,15 @@ MonoBehaviour:
   - {fileID: 33519585}
   - {fileID: 1091087326}
   levels:
-  - word: CAR
-    extraLettersCount: 3
-    gridSize: {x: 5, y: 5}
-    words:
+  - words:
     - CAR
     - CAN
     - COW
     - CAT
     - TOY
+    extraLettersCount: 0
+    gridSize: {x: 6, y: 6}
+    sceneName: Level1
 --- !u!1 &271383751
 GameObject:
   m_ObjectHideFlags: 0

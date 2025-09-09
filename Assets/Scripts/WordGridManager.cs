@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -19,30 +18,21 @@ public class WordGridManager : MonoBehaviour
     [Header("Grid Ayarları")]
     public GameObject cellPrefab;
     public Transform gridParent;
-    public Vector2 cellSize = new Vector2(60, 60);
-    public float cellSpacing = 5f;
+    public Vector2 cellSize = new Vector2(80, 80);
+    public float cellSpacing = 10f;
 
-    public List<WordData> wordsToPlace;
+    public LetterCircleManager letterCircleManager;
 
     private GameObject[,] gridCells;
     private List<Vector2Int> selectedPositions = new List<Vector2Int>();
     private int gridWidth, gridHeight;
+    private List<WordData> wordsToPlace;
 
     void Start()
     {
-        // LevelManager'ın hazır olmasını bekle
-        if (LevelManager.Instance == null)
-        {
-            Debug.LogError("LevelManager Instance bulunamadı!");
-            return;
-        }
-
+        if (LevelManager.Instance == null) return;
         var levelData = LevelManager.Instance.GetCurrentLevelData();
-        if (levelData == null)
-        {
-            Debug.LogError("LevelData null dönüyor! LevelManager ayarlarını kontrol et.");
-            return;
-        }
+        if (levelData == null) return;
 
         gridWidth = levelData.gridSize.x;
         gridHeight = levelData.gridSize.y;
@@ -68,7 +58,6 @@ public class WordGridManager : MonoBehaviour
                 rt.sizeDelta = cellSize;
                 rt.anchoredPosition = new Vector2(startPos.x + x * (cellSize.x + cellSpacing),
                                                   startPos.y - y * (cellSize.y + cellSpacing));
-
                 gridCells[x, y] = cell;
 
                 var cellScript = cell.GetComponent<Cell>();
@@ -78,90 +67,27 @@ public class WordGridManager : MonoBehaviour
                     cellScript.y = y;
                     cellScript.gridManager = this;
                 }
-
-                StartCoroutine(AnimateCell(cell, (x + y * gridWidth) * 0.03f));
             }
         }
-    }
-
-    IEnumerator AnimateCell(GameObject cell, float delay)
-    {
-        cell.transform.localScale = Vector3.zero;
-        yield return new WaitForSeconds(delay);
-        float t = 0f;
-        while (t < 0.3f)
-        {
-            cell.transform.localScale = Vector3.Lerp(Vector3.zero, Vector3.one, t / 0.3f);
-            t += Time.deltaTime;
-            yield return null;
-        }
-        cell.transform.localScale = Vector3.one;
     }
 
     void PlaceAllWords(List<string> wordList)
     {
         wordsToPlace = new List<WordData>();
+        int row = 0;
 
         foreach (var word in wordList)
         {
             WordData wd = new WordData();
             wd.word = word.ToUpper();
-            wd.isHorizontal = Random.value > 0.5f;
-
-            Vector2Int pos;
-            int attempts = 0;
-            do
-            {
-                pos = FindStartPosition(wd.word, wd.isHorizontal, gridWidth, gridHeight);
-                attempts++;
-                if (attempts > 50) break;
-            } while (!CanPlaceWord(wd.word, pos, wd.isHorizontal));
-
-            wd.startPos = pos;
-            wordsToPlace.Add(wd);
+            wd.isHorizontal = true;
+            wd.startPos = new Vector2Int(0, row);
             PlaceWord(wd);
+            wordsToPlace.Add(wd);
+
+            row++;
+            if (row >= gridHeight) row = 0;
         }
-    }
-
-    Vector2Int FindStartPosition(string word, bool horizontal, int maxX, int maxY)
-    {
-        int xMax = horizontal ? maxX - word.Length : maxX - 1;
-        int yMax = horizontal ? maxY - 1 : maxY - word.Length;
-        int x = Random.Range(0, xMax + 1);
-        int y = Random.Range(0, yMax + 1);
-        return new Vector2Int(x, y);
-    }
-
-    bool CanPlaceWord(string word, Vector2Int start, bool horizontal)
-    {
-        for (int i = 0; i < word.Length; i++)
-        {
-            int x = start.x + (horizontal ? i : 0);
-            int y = start.y + (horizontal ? 0 : i);
-
-            if (x >= gridWidth || y >= gridHeight)
-                return false;
-
-            if (gridCells == null)
-            {
-                Debug.LogError("gridCells dizisi null!");
-                return false;
-            }
-            if (gridCells[x, y] == null)
-            {
-                Debug.LogError($"gridCells[{x},{y}] null!");
-                return false;
-            }
-            var textComponent = gridCells[x, y].GetComponentInChildren<Text>();
-            if (textComponent == null)
-            {
-                Debug.LogError($"gridCells[{x},{y}] içinde Text bileşeni yok!");
-                return false;
-            }
-            if (textComponent.text != "")
-                return false;
-        }
-        return true;
     }
 
     void PlaceWord(WordData wordData)
@@ -169,10 +95,20 @@ public class WordGridManager : MonoBehaviour
         wordData.positions.Clear();
         for (int i = 0; i < wordData.word.Length; i++)
         {
-            int x = wordData.startPos.x + (wordData.isHorizontal ? i : 0);
-            int y = wordData.startPos.y + (wordData.isHorizontal ? 0 : i);
+            int x = wordData.startPos.x + i;
+            int y = wordData.startPos.y;
+            if (x >= gridWidth) break;
 
-            Text t = gridCells[x, y].GetComponentInChildren<Text>();
+            var cellObj = gridCells[x, y];
+            if (cellObj == null) continue;
+
+            TMP_Text t = cellObj.GetComponentInChildren<TMP_Text>();
+            if (t == null)
+            {
+                Debug.LogError($"gridCells[{x},{y}] içinde TMP_Text bileşeni bulunamadı!");
+                continue;
+            }
+
             t.text = wordData.word[i].ToString();
             wordData.positions.Add(new Vector2Int(x, y));
         }
@@ -199,7 +135,45 @@ public class WordGridManager : MonoBehaviour
 
         var circleManager = Object.FindAnyObjectByType<LetterCircleManager>();
         if (circleManager != null)
+        {
             circleManager.CreateCircle(new string(letters.ToArray()));
+        }
+        else
+        {
+            Debug.LogError("LetterCircleManager bulunamadı!");
+        }
+    }
+
+    public bool CheckWord(string attempt)
+    {
+        foreach (var word in wordsToPlace)
+        {
+            if (attempt.Equals(word.word, System.StringComparison.OrdinalIgnoreCase) && !word.isFound)
+            {
+                word.isFound = true;
+                foreach (var pos in word.positions)
+                    gridCells[pos.x, pos.y].GetComponent<Image>().color = Color.green;
+
+                if (AllWordsFound())
+                    LevelManager.Instance.OnLevelCompleted();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool AllWordsFound()
+    {
+        foreach (var word in wordsToPlace)
+            if (!word.isFound) return false;
+        return true;
+    }
+
+    public void ClearSelection()
+    {
+        foreach (var pos in selectedPositions)
+            gridCells[pos.x, pos.y].GetComponent<Image>().color = Color.white;
+        selectedPositions.Clear();
     }
 
     public void OnCellClicked(int x, int y)
@@ -209,10 +183,10 @@ public class WordGridManager : MonoBehaviour
 
         selectedPositions.Add(pos);
         gridCells[x, y].GetComponent<Image>().color = Color.yellow;
-        CheckSelectedWord();
+        CheckSelectedWords();
     }
 
-    void CheckSelectedWord()
+    void CheckSelectedWords()
     {
         foreach (var word in wordsToPlace)
         {
@@ -237,38 +211,5 @@ public class WordGridManager : MonoBehaviour
         foreach (var pos in wordData.positions)
             if (!selectedPositions.Contains(pos)) return false;
         return true;
-    }
-
-    bool AllWordsFound()
-    {
-        foreach (var word in wordsToPlace)
-            if (!word.isFound) return false;
-        return true;
-    }
-
-    public bool CheckWord(string attempt)
-    {
-        foreach (var word in wordsToPlace)
-        {
-            if (attempt.Equals(word.word, System.StringComparison.OrdinalIgnoreCase) && !word.isFound)
-            {
-                word.isFound = true;
-                foreach (var pos in word.positions)
-                    gridCells[pos.x, pos.y].GetComponent<Image>().color = Color.green;
-
-                if (AllWordsFound())
-                    LevelManager.Instance.OnLevelCompleted();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public void ClearSelection()
-    {
-        foreach (var pos in selectedPositions)
-            gridCells[pos.x, pos.y].GetComponent<Image>().color = Color.white;
-
-        selectedPositions.Clear();
     }
 }

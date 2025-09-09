@@ -1,37 +1,52 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 using System.Collections.Generic;
+using UnityEngine.UI;
 
 public class LevelManager : MonoBehaviour
 {
-    [System.Serializable]
-    public class LevelData
-    {
-        public string word;
-        public int extraLettersCount;
-        public Vector2Int gridSize = new Vector2Int(6, 6);
-        public List<string> words; // Birden fazla kelime desteği
-    }
-
     public Button[] levelButtons;
     public LevelData[] levels;
     public static LevelManager Instance;
+    [System.Serializable]
+    public class LevelData
+    {
+        public List<string> words;
+        public int extraLettersCount = 10;
+        public Vector2Int gridSize = new Vector2Int(6, 6);
+        public string sceneName; // Level sahne ismi
+    }
+    void Start()
+    {
+        SetupLevelButtons();
+    }
+
+    void SetupLevelButtons()
+    {
+        for (int i = 0; i < levelButtons.Length; i++)
+        {
+            int capturedIndex = i + 1; // Lambda closure için ayrı değişken
+            levelButtons[i].onClick.RemoveAllListeners();
+            levelButtons[i].onClick.AddListener(() =>
+            {
+                LevelManager.Instance.LoadLevel(capturedIndex);
+            });
+
+            // Eğer level kilitliyse butonu devre dışı bırakabilirsiniz
+            int unlockedLevel = PlayerPrefs.GetInt("UnlockedLevel", 1);
+            levelButtons[i].interactable = capturedIndex <= unlockedLevel;
+        }
+    }
 
     void Awake()
     {
-        // Singleton pattern - sadece bir Instance olmalı
         if (Instance == null)
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
 
-            // PlayerPrefs yoksa başlangıç değerlerini ayarla
-            if (!PlayerPrefs.HasKey("UnlockedLevel"))
-            {
-                PlayerPrefs.SetInt("UnlockedLevel", 1);
-                PlayerPrefs.Save();
-            }
+            if (!PlayerPrefs.HasKey("CurrentLevel"))
+                PlayerPrefs.SetInt("CurrentLevel", 1);
         }
         else
         {
@@ -39,95 +54,35 @@ public class LevelManager : MonoBehaviour
         }
     }
 
-    void Start()
+    public LevelData GetCurrentLevelData()
     {
-        if (SceneManager.GetActiveScene().name == "LevelMenu")
-        {
-            SetupLevelButtons();
-        }
-    }
-
-    void SetupLevelButtons()
-    {
-        int unlockedLevel = PlayerPrefs.GetInt("UnlockedLevel", 1);
-
-        if (levelButtons == null)
-        {
-            Debug.LogError("levelButtons dizisi atanmadı!");
-            return;
-        }
-
-        for (int i = 0; i < levelButtons.Length; i++)
-        {
-            if (levelButtons[i] == null)
-            {
-                Debug.LogError($"levelButtons[{i}] null!");
-                continue;
-            }
-
-            var textComponent = levelButtons[i].GetComponentInChildren<Text>();
-            if (i + 1 <= unlockedLevel)
-            {
-                levelButtons[i].interactable = true;
-                if (textComponent != null)
-                    textComponent.text = (i + 1).ToString();
-            }
-            else
-            {
-                levelButtons[i].interactable = false;
-                if (textComponent != null)
-                    textComponent.text = "🔒";
-            }
-
-            int levelIndex = i + 1;
-            levelButtons[i].onClick.RemoveAllListeners();
-            levelButtons[i].onClick.AddListener(() => LoadLevel(levelIndex));
-        }
+        int currentLevel = PlayerPrefs.GetInt("CurrentLevel", 1);
+        if (currentLevel > 0 && currentLevel <= levels.Length)
+            return levels[currentLevel - 1];
+        return levels[0];
     }
 
     public void LoadLevel(int levelIndex)
     {
-        if (levelIndex <= levels.Length)
+        if (levelIndex > 0 && levelIndex <= levels.Length)
         {
             PlayerPrefs.SetInt("CurrentLevel", levelIndex);
-            SceneManager.LoadScene(levelIndex.ToString());
+            string sceneName = levels[levelIndex - 1].sceneName;
+            if (Application.CanStreamedLevelBeLoaded(sceneName))
+                SceneManager.LoadScene(sceneName);
+            else
+                Debug.LogError("Sahne bulunamadı: " + sceneName);
         }
-        else
-        {
-            Debug.Log("Tüm leveller tamamlandı!");
-        }
-    }
-
-    public LevelData GetCurrentLevelData()
-    {
-        int currentLevel = PlayerPrefs.GetInt("CurrentLevel", 1);
-
-        // Dizi sınırlarını kontrol et
-        if (currentLevel > 0 && currentLevel <= levels.Length)
-        {
-            return levels[currentLevel - 1];
-        }
-
-        Debug.LogError("Geçersiz level indeksi: " + currentLevel);
-        return levels[0]; // Varsayılan olarak ilk level
     }
 
     public void OnLevelCompleted()
     {
         int currentLevel = PlayerPrefs.GetInt("CurrentLevel", 1);
-        int unlockedLevel = PlayerPrefs.GetInt("UnlockedLevel", 1);
+        PlayerPrefs.SetInt("CurrentLevel", currentLevel + 1);
 
-        if (currentLevel >= unlockedLevel)
-        {
-            PlayerPrefs.SetInt("UnlockedLevel", currentLevel + 1);
-            PlayerPrefs.Save();
-        }
-
-        SceneManager.LoadScene("LevelMenu");
-    }
-
-    public void GoToMenu()
-    {
-        SceneManager.LoadScene("LevelMenu");
+        if (Application.CanStreamedLevelBeLoaded("LevelMenu"))
+            SceneManager.LoadScene("LevelMenu");
+        else
+            Debug.LogError("LevelMenu sahnesi Build Settings'e eklenmemiş!");
     }
 }
