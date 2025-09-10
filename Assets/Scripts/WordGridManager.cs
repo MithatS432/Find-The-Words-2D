@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,9 +10,6 @@ public class WordGridManager : MonoBehaviour
     public class WordData
     {
         public string word;
-        public Vector2Int startPos;
-        public bool isHorizontal;
-        [HideInInspector] public List<Vector2Int> positions = new List<Vector2Int>();
         [HideInInspector] public bool isFound = false;
     }
 
@@ -19,197 +17,112 @@ public class WordGridManager : MonoBehaviour
     public GameObject cellPrefab;
     public Transform gridParent;
     public Vector2 cellSize = new Vector2(80, 80);
-    public float cellSpacing = 10f;
+    public float cellSpacing = 5f;
 
-    public LetterCircleManager letterCircleManager;
+    [Header("Oyun Ayarları")]
+    public List<WordData> wordsToFind;
+    public TextMeshProUGUI scoreText;
+    public TextMeshProUGUI foundWordsText;
 
     private GameObject[,] gridCells;
-    private List<Vector2Int> selectedPositions = new List<Vector2Int>();
     private int gridWidth, gridHeight;
-    private List<WordData> wordsToPlace;
+    private int score = 0;
+    private int foundWordsCount = 0;
 
     void Start()
     {
-        if (LevelManager.Instance == null) return;
-        var levelData = LevelManager.Instance.GetCurrentLevelData();
-        if (levelData == null) return;
-
-        gridWidth = levelData.gridSize.x;
-        gridHeight = levelData.gridSize.y;
+        // Grid boyutunu kelimelere göre ayarla
+        gridWidth = 8;
+        gridHeight = 8;
 
         CreateGrid();
-        PlaceAllWords(levelData.words);
-        FillEmptyCells(levelData.extraLettersCount);
+        PlaceWords();
+        UpdateUI();
     }
 
     void CreateGrid()
     {
         gridCells = new GameObject[gridWidth, gridHeight];
-        float totalWidth = gridWidth * cellSize.x + (gridWidth - 1) * cellSpacing;
-        float totalHeight = gridHeight * cellSize.y + (gridHeight - 1) * cellSpacing;
-        Vector2 startPos = new Vector2(-totalWidth / 2 + cellSize.x / 2, totalHeight / 2 - cellSize.y / 2);
+
+        GridLayoutGroup gridLayout = gridParent.GetComponent<GridLayoutGroup>();
+        if (gridLayout != null)
+        {
+            gridLayout.cellSize = cellSize;
+            gridLayout.spacing = new Vector2(cellSpacing, cellSpacing);
+            gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            gridLayout.constraintCount = gridWidth;
+        }
 
         for (int y = 0; y < gridHeight; y++)
         {
             for (int x = 0; x < gridWidth; x++)
             {
                 GameObject cell = Instantiate(cellPrefab, gridParent);
-                RectTransform rt = cell.GetComponent<RectTransform>();
-                rt.sizeDelta = cellSize;
-                rt.anchoredPosition = new Vector2(startPos.x + x * (cellSize.x + cellSpacing),
-                                                  startPos.y - y * (cellSize.y + cellSpacing));
+                cell.name = $"Cell_{x}_{y}";
                 gridCells[x, y] = cell;
 
-                var cellScript = cell.GetComponent<Cell>();
-                if (cellScript != null)
+                // Hücreyi başlangıçta boş yap
+                TextMeshProUGUI text = cell.GetComponentInChildren<TextMeshProUGUI>();
+                if (text != null)
                 {
-                    cellScript.x = x;
-                    cellScript.y = y;
-                    cellScript.gridManager = this;
+                    text.text = "";
                 }
             }
         }
     }
 
-    void PlaceAllWords(List<string> wordList)
+    void PlaceWords()
     {
-        wordsToPlace = new List<WordData>();
-        int row = 0;
-
-        foreach (var word in wordList)
+        // Örnek kelimeleri yerleştir
+        // Bu kısmı LevelManager'dan alacağınız verilerle değiştirebilirsiniz
+        wordsToFind = new List<WordData>
         {
-            WordData wd = new WordData();
-            wd.word = word.ToUpper();
-            wd.isHorizontal = true;
-            wd.startPos = new Vector2Int(0, row);
-            PlaceWord(wd);
-            wordsToPlace.Add(wd);
-
-            row++;
-            if (row >= gridHeight) row = 0;
-        }
+            new WordData { word = "PROBLEM" },
+            new WordData { word = "MORE" },
+            new WordData { word = "ROPE" }
+        };
     }
 
-    void PlaceWord(WordData wordData)
+    public void CheckWord(string attemptedWord)
     {
-        wordData.positions.Clear();
-        for (int i = 0; i < wordData.word.Length; i++)
+        foreach (WordData wordData in wordsToFind)
         {
-            int x = wordData.startPos.x + i;
-            int y = wordData.startPos.y;
-            if (x >= gridWidth) break;
-
-            var cellObj = gridCells[x, y];
-            if (cellObj == null) continue;
-
-            TMP_Text t = cellObj.GetComponentInChildren<TMP_Text>();
-            if (t == null)
+            if (!wordData.isFound && attemptedWord.Equals(wordData.word, System.StringComparison.OrdinalIgnoreCase))
             {
-                Debug.LogError($"gridCells[{x},{y}] içinde TMP_Text bileşeni bulunamadı!");
-                continue;
-            }
+                wordData.isFound = true;
+                foundWordsCount++;
+                score += attemptedWord.Length * 100;
 
-            t.text = wordData.word[i].ToString();
-            wordData.positions.Add(new Vector2Int(x, y));
-        }
-    }
+                // Bulunan kelimeyi grid'de göster
+                StartCoroutine(RevealWord(wordData.word));
 
-    void FillEmptyCells(int extraLetters)
-    {
-        List<char> letters = new List<char>();
-        foreach (var word in wordsToPlace)
-            letters.AddRange(word.word.ToCharArray());
-
-        string alphabet = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ";
-        for (int i = 0; i < extraLetters; i++)
-            letters.Add(alphabet[Random.Range(0, alphabet.Length)]);
-
-        // Karıştır
-        for (int i = 0; i < letters.Count; i++)
-        {
-            char tmp = letters[i];
-            int rnd = Random.Range(i, letters.Count);
-            letters[i] = letters[rnd];
-            letters[rnd] = tmp;
-        }
-
-        var circleManager = Object.FindAnyObjectByType<LetterCircleManager>();
-        if (circleManager != null)
-        {
-            circleManager.CreateCircle(new string(letters.ToArray()));
-        }
-        else
-        {
-            Debug.LogError("LetterCircleManager bulunamadı!");
-        }
-    }
-
-    public bool CheckWord(string attempt)
-    {
-        foreach (var word in wordsToPlace)
-        {
-            if (attempt.Equals(word.word, System.StringComparison.OrdinalIgnoreCase) && !word.isFound)
-            {
-                word.isFound = true;
-                foreach (var pos in word.positions)
-                    gridCells[pos.x, pos.y].GetComponent<Image>().color = Color.green;
-
-                if (AllWordsFound())
-                    LevelManager.Instance.OnLevelCompleted();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool AllWordsFound()
-    {
-        foreach (var word in wordsToPlace)
-            if (!word.isFound) return false;
-        return true;
-    }
-
-    public void ClearSelection()
-    {
-        foreach (var pos in selectedPositions)
-            gridCells[pos.x, pos.y].GetComponent<Image>().color = Color.white;
-        selectedPositions.Clear();
-    }
-
-    public void OnCellClicked(int x, int y)
-    {
-        Vector2Int pos = new Vector2Int(x, y);
-        if (selectedPositions.Contains(pos)) return;
-
-        selectedPositions.Add(pos);
-        gridCells[x, y].GetComponent<Image>().color = Color.yellow;
-        CheckSelectedWords();
-    }
-
-    void CheckSelectedWords()
-    {
-        foreach (var word in wordsToPlace)
-        {
-            if (!word.isFound && MatchWord(word))
-            {
-                word.isFound = true;
-                foreach (var pos in word.positions)
-                    gridCells[pos.x, pos.y].GetComponent<Image>().color = Color.green;
-
-                selectedPositions.Clear();
-
-                if (AllWordsFound())
-                    LevelManager.Instance.OnLevelCompleted();
+                UpdateUI();
                 return;
             }
         }
+
+        // Yanlış kelime için feedback
+        Debug.Log("Yanlış kelime: " + attemptedWord);
     }
 
-    bool MatchWord(WordData wordData)
+    IEnumerator RevealWord(string word)
     {
-        if (wordData.positions.Count != selectedPositions.Count) return false;
-        foreach (var pos in wordData.positions)
-            if (!selectedPositions.Contains(pos)) return false;
-        return true;
+        // Kelimenin grid'de gösterilmesi (animasyonlu)
+        // Bu kısmı ihtiyacınıza göre özelleştirebilirsiniz
+        yield return new WaitForSeconds(0.5f);
+    }
+
+    void UpdateUI()
+    {
+        if (scoreText != null)
+            scoreText.text = $"Puan: {score}";
+
+        if (foundWordsText != null)
+            foundWordsText.text = $"Bulunan Kelimeler: {foundWordsCount}/{wordsToFind.Count}";
+    }
+
+    public bool AreAllWordsFound()
+    {
+        return foundWordsCount >= wordsToFind.Count;
     }
 }

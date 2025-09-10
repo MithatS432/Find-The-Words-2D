@@ -1,63 +1,36 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 
-public class LetterCircleManager : MonoBehaviour
+public class LetterCircleManager : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IDragHandler
 {
     public GameObject letterButtonPrefab;
     public Transform circleParent;
     public float radius = 150f;
-    public Button submitButton;
-    public Button clearButton;
-    public TextMeshProUGUI currentWordText; // Seçilen harfleri göstermek için
+    public TextMeshProUGUI currentWordText;
+    public WordGridManager gridManager;
 
-    private List<Button> letterButtons = new List<Button>();
+    private List<GameObject> letterButtons = new List<GameObject>();
     private string currentWord = "";
-    private WordGridManager gridManager;
+    private bool isDragging = false;
+    private GameObject lastSelectedLetter = null;
 
     void Start()
     {
-        // Null kontrolü ekle
-        if (letterButtonPrefab == null)
-        {
-            Debug.LogError("LetterButtonPrefab atanmamış! Inspector'dan prefab'ı sürükleyip bırakın.");
-            return;
-        }
-
-        if (circleParent == null)
-        {
-            Debug.LogError("CircleParent atanmamış! Inspector'dan parent transform'u sürükleyip bırakın.");
-            return;
-        }
-
-        gridManager = Object.FindAnyObjectByType<WordGridManager>();
-
-        if (submitButton != null)
-            submitButton.onClick.AddListener(SubmitWord);
-        else
-            Debug.LogError("SubmitButton atanmamış!");
-
-        if (clearButton != null)
-            clearButton.onClick.AddListener(ClearSelection);
-        else
-            Debug.LogError("ClearButton atanmamış!");
+        // Örnek harf kümesi - LevelManager'dan alınmalı
+        string letters = "PROBLEMRE"; // PROBLEM ve MORE kelimeleri için harfler
+        CreateCircle(letters);
     }
 
     public void CreateCircle(string letters)
     {
-        // Null kontrolü
-        if (letterButtonPrefab == null || circleParent == null)
-        {
-            Debug.LogError("LetterButtonPrefab veya CircleParent atanmamış!");
-            return;
-        }
-
         // Öncekileri temizle
-        foreach (var btn in letterButtons)
+        foreach (GameObject btn in letterButtons)
         {
-            if (btn != null && btn.gameObject != null)
-                Destroy(btn.gameObject);
+            Destroy(btn);
         }
         letterButtons.Clear();
 
@@ -67,96 +40,128 @@ public class LetterCircleManager : MonoBehaviour
 
         for (int i = 0; i < count; i++)
         {
-            GameObject newBtn = Instantiate(letterButtonPrefab, circleParent);
-            if (newBtn == null)
-            {
-                Debug.LogError("Button oluşturulamadı!");
-                continue;
-            }
+            GameObject letterBtn = Instantiate(letterButtonPrefab, circleParent);
+            letterButtons.Add(letterBtn);
 
-            RectTransform rt = newBtn.GetComponent<RectTransform>();
-            if (rt == null)
-            {
-                Debug.LogError("Button RectTransform bileşeni yok!");
-                continue;
-            }
-
+            RectTransform rt = letterBtn.GetComponent<RectTransform>();
             float angle = i * angleStep * Mathf.Deg2Rad;
             rt.anchoredPosition = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
 
-            TextMeshProUGUI txt = newBtn.GetComponentInChildren<TextMeshProUGUI>();
-            if (txt != null)
+            TextMeshProUGUI text = letterBtn.GetComponentInChildren<TextMeshProUGUI>();
+            if (text != null)
             {
-                txt.text = letters[i].ToString();
-            }
-            else
-            {
-                Debug.LogError("Button içinde TextMeshProUGUI bileşeni yok!");
+                text.text = letters[i].ToString();
             }
 
-            Button btn = newBtn.GetComponent<Button>();
-            if (btn != null)
+            // Her harfe tıklanabilirlik özelliği ekle
+            Letter letterComponent = letterBtn.GetComponent<Letter>();
+            if (letterComponent == null)
             {
-                char letter = letters[i];
-                btn.onClick.AddListener(() => OnLetterClicked(letter));
-                letterButtons.Add(btn);
+                letterComponent = letterBtn.AddComponent<Letter>();
             }
-            else
-            {
-                Debug.LogError("Button bileşeni yok!");
-            }
+            letterComponent.letter = letters[i];
+            letterComponent.circleManager = this;
         }
     }
 
-    void OnLetterClicked(char letter)
+    public void OnLetterSelected(char letter, GameObject letterObject)
     {
-        currentWord += letter;
-        if (currentWordText != null)
-            currentWordText.text = currentWord;
-        else
-            Debug.LogError("CurrentWordText atanmamış!");
-
-        Debug.Log("Seçilen kelime: " + currentWord);
+        if (lastSelectedLetter != letterObject)
+        {
+            currentWord += letter;
+            UpdateCurrentWordDisplay();
+            lastSelectedLetter = letterObject;
+            
+            // Seçilen harfi vurgula
+            letterObject.GetComponent<Image>().color = Color.yellow;
+        }
     }
 
-    void SubmitWord()
+    public void OnPointerDown(PointerEventData eventData)
     {
-        if (string.IsNullOrEmpty(currentWord))
-        {
-            Debug.Log("Kelime boş!");
-            return;
-        }
-
-        if (gridManager != null)
-        {
-            if (gridManager.CheckWord(currentWord))
-            {
-                Debug.Log("Doğru kelime bulundu: " + currentWord);
-            }
-            else
-            {
-                Debug.Log("Yanlış kelime: " + currentWord);
-            }
-        }
-        else
-        {
-            Debug.LogError("GridManager bulunamadı!");
-        }
-
-        ClearSelection();
-    }
-
-    public void ClearSelection()
-    {
+        isDragging = true;
         currentWord = "";
-        if (currentWordText != null)
-            currentWordText.text = "";
-        else
-            Debug.LogError("CurrentWordText atanmamış!");
+        UpdateCurrentWordDisplay();
+        ResetLetterColors();
+    }
 
-        if (gridManager != null)
-            gridManager.ClearSelection();
-        else
-            Debug.LogError("GridManager bulunamadı!");
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (!isDragging) return;
+
+        // Sürükleme sırasında hangi harflerin üzerinden geçtiğimizi kontrol et
+        List<RaycastResult> results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(eventData, results);
+        
+        foreach (RaycastResult result in results)
+        {
+            Letter letter = result.gameObject.GetComponent<Letter>();
+            if (letter != null && letter.circleManager == this)
+            {
+                letter.OnPointerEnter(null);
+            }
+        }
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        if (isDragging && !string.IsNullOrEmpty(currentWord))
+        {
+            // Kelimeyi kontrol et
+            if (gridManager != null)
+            {
+                gridManager.CheckWord(currentWord);
+            }
+            
+            // Oyun bitti mi kontrol et
+            if (gridManager.AreAllWordsFound())
+            {
+                Debug.Log("Tebrikler! Tüm kelimeleri buldunuz!");
+            }
+        }
+        
+        isDragging = false;
+        currentWord = "";
+        UpdateCurrentWordDisplay();
+        ResetLetterColors();
+    }
+
+    void UpdateCurrentWordDisplay()
+    {
+        if (currentWordText != null)
+        {
+            currentWordText.text = currentWord;
+        }
+    }
+
+    void ResetLetterColors()
+    {
+        foreach (GameObject letterBtn in letterButtons)
+        {
+            letterBtn.GetComponent<Image>().color = Color.white;
+        }
+    }
+}
+
+// Harf nesneleri için yardımcı sınıf
+public class Letter : MonoBehaviour, IPointerEnterHandler
+{
+    public char letter;
+    public LetterCircleManager circleManager;
+    private bool isSelected = false;
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (circleManager != null && !isSelected)
+        {
+            circleManager.OnLetterSelected(letter, gameObject);
+            isSelected = true;
+        }
+    }
+
+    void Update()
+    {
+        // Her frame'de seçili olma durumunu sıfırla (yeni sürükleme için)
+        isSelected = false;
     }
 }

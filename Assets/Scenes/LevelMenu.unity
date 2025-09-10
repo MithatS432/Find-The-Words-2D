@@ -723,7 +723,7 @@ MonoBehaviour:
     - CAN
     - COW
     - CAT
-    - TOY
+    - CUP
     extraLettersCount: 0
     gridSize: {x: 6, y: 6}
     sceneName: Level1
