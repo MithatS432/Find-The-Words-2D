@@ -8,6 +8,7 @@ public class LevelManager : MonoBehaviour
     public Button[] levelButtons;
     public LevelData[] levels;
     public static LevelManager Instance;
+
     [System.Serializable]
     public class LevelData
     {
@@ -15,27 +16,6 @@ public class LevelManager : MonoBehaviour
         public int extraLettersCount = 10;
         public Vector2Int gridSize = new Vector2Int(6, 6);
         public string sceneName; // Level sahne ismi
-    }
-    void Start()
-    {
-        SetupLevelButtons();
-    }
-
-    void SetupLevelButtons()
-    {
-        for (int i = 0; i < levelButtons.Length; i++)
-        {
-            int capturedIndex = i + 1; // Lambda closure için ayrı değişken
-            levelButtons[i].onClick.RemoveAllListeners();
-            levelButtons[i].onClick.AddListener(() =>
-            {
-                LevelManager.Instance.LoadLevel(capturedIndex);
-            });
-
-            // Eğer level kilitliyse butonu devre dışı bırakabilirsiniz
-            int unlockedLevel = PlayerPrefs.GetInt("UnlockedLevel", 1);
-            levelButtons[i].interactable = capturedIndex <= unlockedLevel;
-        }
     }
 
     void Awake()
@@ -51,6 +31,28 @@ public class LevelManager : MonoBehaviour
         else
         {
             Destroy(gameObject);
+        }
+    }
+
+    void Start()
+    {
+        if (levelButtons != null && levelButtons.Length > 0)
+            SetupLevelButtons();
+    }
+
+    void SetupLevelButtons()
+    {
+        for (int i = 0; i < levelButtons.Length; i++)
+        {
+            int capturedIndex = i + 1;
+            levelButtons[i].onClick.RemoveAllListeners();
+            levelButtons[i].onClick.AddListener(() =>
+            {
+                LoadLevel(capturedIndex);
+            });
+
+            int unlockedLevel = PlayerPrefs.GetInt("UnlockedLevel", 1);
+            levelButtons[i].interactable = capturedIndex <= unlockedLevel;
         }
     }
 
@@ -78,7 +80,7 @@ public class LevelManager : MonoBehaviour
     public void OnLevelCompleted()
     {
         int currentLevel = PlayerPrefs.GetInt("CurrentLevel", 1);
-        PlayerPrefs.SetInt("CurrentLevel", currentLevel + 1);
+        PlayerPrefs.SetInt("UnlockedLevel", Mathf.Max(PlayerPrefs.GetInt("UnlockedLevel", 1), currentLevel + 1));
 
         if (Application.CanStreamedLevelBeLoaded("LevelMenu"))
             SceneManager.LoadScene("LevelMenu");

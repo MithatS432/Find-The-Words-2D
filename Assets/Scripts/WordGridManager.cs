@@ -13,31 +13,31 @@ public class WordGridManager : MonoBehaviour
         [HideInInspector] public bool isFound = false;
     }
 
-    [Header("Grid Ayarları")]
     public GameObject cellPrefab;
     public Transform gridParent;
-    public Vector2 cellSize = new Vector2(80, 80);
-    public float cellSpacing = 5f;
 
-    [Header("Oyun Ayarları")]
-    public List<WordData> wordsToFind;
-    public TextMeshProUGUI scoreText;
-    public TextMeshProUGUI foundWordsText;
+    [HideInInspector] public List<WordData> wordsToFind;
+    [HideInInspector] public int gridWidth = 8;
+    [HideInInspector] public int gridHeight = 8;
 
     private GameObject[,] gridCells;
-    private int gridWidth, gridHeight;
-    private int score = 0;
-    private int foundWordsCount = 0;
 
     void Start()
     {
-        // Grid boyutunu kelimelere göre ayarla
-        gridWidth = 8;
-        gridHeight = 8;
+        // Level verilerini al
+        var levelData = LevelManager.Instance.GetCurrentLevelData();
+
+        // Kelimeleri hazırla
+        wordsToFind = new List<WordData>();
+        foreach (var w in levelData.words)
+        {
+            wordsToFind.Add(new WordData { word = w });
+        }
+
+        gridWidth = levelData.gridSize.x;
+        gridHeight = levelData.gridSize.y;
 
         CreateGrid();
-        PlaceWords();
-        UpdateUI();
     }
 
     void CreateGrid()
@@ -46,12 +46,7 @@ public class WordGridManager : MonoBehaviour
 
         GridLayoutGroup gridLayout = gridParent.GetComponent<GridLayoutGroup>();
         if (gridLayout != null)
-        {
-            gridLayout.cellSize = cellSize;
-            gridLayout.spacing = new Vector2(cellSpacing, cellSpacing);
-            gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             gridLayout.constraintCount = gridWidth;
-        }
 
         for (int y = 0; y < gridHeight; y++)
         {
@@ -59,70 +54,51 @@ public class WordGridManager : MonoBehaviour
             {
                 GameObject cell = Instantiate(cellPrefab, gridParent);
                 cell.name = $"Cell_{x}_{y}";
+
                 gridCells[x, y] = cell;
 
-                // Hücreyi başlangıçta boş yap
                 TextMeshProUGUI text = cell.GetComponentInChildren<TextMeshProUGUI>();
-                if (text != null)
-                {
-                    text.text = "";
-                }
+                if (text != null) text.text = "";
             }
         }
     }
-
-    void PlaceWords()
+    void RevealWordInGrid(string word)
     {
-        // Örnek kelimeleri yerleştir
-        // Bu kısmı LevelManager'dan alacağınız verilerle değiştirebilirsiniz
-        wordsToFind = new List<WordData>
+        int maxX = gridWidth - word.Length;
+        int xStart = Random.Range(0, maxX + 1);
+        int yStart = Random.Range(0, gridHeight);
+
+        for (int i = 0; i < word.Length; i++)
         {
-            new WordData { word = "PROBLEM" },
-            new WordData { word = "MORE" },
-            new WordData { word = "ROPE" }
-        };
+            TextMeshProUGUI text = gridCells[xStart + i, yStart].GetComponentInChildren<TextMeshProUGUI>();
+            if (text != null) text.text = word[i].ToString();
+        }
+
+        Debug.Log("Doğru kelime bulundu: " + word);
     }
 
-    public void CheckWord(string attemptedWord)
+    public bool AreAllWordsFound()
+    {
+        foreach (WordData wordData in wordsToFind)
+            if (!wordData.isFound) return false;
+        return true;
+    }
+    public bool CheckWord(string attemptedWord)
     {
         foreach (WordData wordData in wordsToFind)
         {
             if (!wordData.isFound && attemptedWord.Equals(wordData.word, System.StringComparison.OrdinalIgnoreCase))
             {
                 wordData.isFound = true;
-                foundWordsCount++;
-                score += attemptedWord.Length * 100;
+                RevealWordInGrid(wordData.word);
 
-                // Bulunan kelimeyi grid'de göster
-                StartCoroutine(RevealWord(wordData.word));
+                if (AreAllWordsFound())
+                    LevelManager.Instance.OnLevelCompleted();
 
-                UpdateUI();
-                return;
+                return true; // doğru kelime bulundu
             }
         }
-
-        // Yanlış kelime için feedback
-        Debug.Log("Yanlış kelime: " + attemptedWord);
+        return false; // yanlış kelime
     }
 
-    IEnumerator RevealWord(string word)
-    {
-        // Kelimenin grid'de gösterilmesi (animasyonlu)
-        // Bu kısmı ihtiyacınıza göre özelleştirebilirsiniz
-        yield return new WaitForSeconds(0.5f);
-    }
-
-    void UpdateUI()
-    {
-        if (scoreText != null)
-            scoreText.text = $"Puan: {score}";
-
-        if (foundWordsText != null)
-            foundWordsText.text = $"Bulunan Kelimeler: {foundWordsCount}/{wordsToFind.Count}";
-    }
-
-    public bool AreAllWordsFound()
-    {
-        return foundWordsCount >= wordsToFind.Count;
-    }
 }
