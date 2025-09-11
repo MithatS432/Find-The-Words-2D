@@ -2,39 +2,72 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class Letter : MonoBehaviour, IPointerEnterHandler
+public class Letter : MonoBehaviour, IPointerEnterHandler, IPointerDownHandler
 {
     public char letter;
     public LetterCircleManager circleManager;
     private bool isSelected = false;
     private Image img;
+    private Button button;
 
     void Awake()
     {
         img = GetComponent<Image>();
-        img.color = Color.white;
+        button = GetComponent<Button>();
+        ResetSelection();
     }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (!isSelected)
+        if (circleManager != null && circleManager.IsDragging && !isSelected)
         {
-            isSelected = true;
-            img.color = Color.yellow; // Sürükle-bırak sırasında sarı olacak
+            SelectLetter();
+        }
+    }
+
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        // Tıklamayla da harf seçilebilir
+        if (!circleManager.IsDragging)
+        {
+            circleManager.OnPointerDown(eventData);
+            SelectLetter();
+        }
+    }
+
+    public void SelectLetter()
+    {
+        isSelected = true;
+        img.color = Color.yellow;
+        
+        if (circleManager != null)
+        {
             circleManager.OnLetterSelected(this);
         }
     }
 
-    public void SetCorrect()  // Kelime doğruysa yeşil
+    public void SetCorrect()
     {
-        if (img != null)
-            img.color = Color.green;
+        isSelected = true;
+        img.color = Color.green;
     }
 
-    public void ResetSelection()  // Yeni kelime için sıfırlama
+    public void SetInteractable(bool interactable)
+    {
+        if (button != null)
+        {
+            button.interactable = interactable;
+        }
+    }
+
+    public void ResetSelection()
     {
         isSelected = false;
-        if (img != null)
-            img.color = Color.white;
+        img.color = Color.white;
+        
+        if (button != null)
+        {
+            button.interactable = true;
+        }
     }
 }

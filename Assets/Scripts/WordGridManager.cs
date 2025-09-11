@@ -21,7 +21,7 @@ public class WordGridManager : MonoBehaviour
     [HideInInspector] public int gridHeight = 8;
 
     private GameObject[,] gridCells;
-
+    private int nextRow = 0; // her kelime yeni satıra gidecek
     void Start()
     {
         // Level verilerini al
@@ -64,16 +64,29 @@ public class WordGridManager : MonoBehaviour
     }
     void RevealWordInGrid(string word)
     {
+        if (nextRow >= gridHeight) return;
+
         int maxX = gridWidth - word.Length;
         int xStart = Random.Range(0, maxX + 1);
-        int yStart = Random.Range(0, gridHeight);
 
         for (int i = 0; i < word.Length; i++)
         {
-            TextMeshProUGUI text = gridCells[xStart + i, yStart].GetComponentInChildren<TextMeshProUGUI>();
-            if (text != null) text.text = word[i].ToString();
+            int x = xStart + i;
+            int y = nextRow;
+
+            if (x < gridWidth && y < gridHeight)
+            {
+                TextMeshProUGUI text = gridCells[x, y].GetComponentInChildren<TextMeshProUGUI>();
+                if (text != null)
+                {
+                    text.text = word[i].ToString();
+                    // Hücre rengini de değiştirebilirsiniz
+                    gridCells[x, y].GetComponent<Image>().color = Color.green;
+                }
+            }
         }
 
+        nextRow++;
         Debug.Log("Doğru kelime bulundu: " + word);
     }
 

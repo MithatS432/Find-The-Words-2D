@@ -725,7 +725,7 @@ MonoBehaviour:
     - CAT
     - CUP
     extraLettersCount: 0
-    gridSize: {x: 6, y: 6}
+    gridSize: {x: 8, y: 8}
     sceneName: Level1
 --- !u!1 &271383751
 GameObject:

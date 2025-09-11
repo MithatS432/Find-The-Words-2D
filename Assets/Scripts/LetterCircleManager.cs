@@ -14,17 +14,23 @@ public class LetterCircleManager : MonoBehaviour, IPointerDownHandler, IPointerU
     private List<Letter> lettersList = new List<Letter>();
     private List<Letter> selectedLetters = new List<Letter>();
     private string currentWord = "";
-    private bool isDragging = false;
+    public bool IsDragging { get; private set; } = false;
 
     void Start()
     {
         var levelData = LevelManager.Instance.GetCurrentLevelData();
 
-        string letters = string.Join("", levelData.words.ToArray());
-        letters += GenerateExtraLetters(levelData.extraLettersCount);
+        // Kelimelerdeki harfleri tek seferlik al
+        HashSet<char> uniqueLetters = new HashSet<char>();
+        foreach (var w in levelData.words)
+            foreach (var c in w)
+                uniqueLetters.Add(c);
+
+        string letters = new string(new List<char>(uniqueLetters).ToArray());
 
         CreateCircle(letters);
     }
+
 
     public void CreateCircle(string letters)
     {
@@ -68,6 +74,7 @@ public class LetterCircleManager : MonoBehaviour, IPointerDownHandler, IPointerU
         {
             selectedLetters.Add(letter);
             currentWord += letter.letter;
+
             if (currentWordText != null)
                 currentWordText.text = currentWord;
         }
@@ -75,31 +82,31 @@ public class LetterCircleManager : MonoBehaviour, IPointerDownHandler, IPointerU
 
     public void OnPointerDown(PointerEventData eventData)
     {
-        isDragging = true;
-        currentWord = "";
-        selectedLetters.Clear();
-        if (currentWordText != null)
-            currentWordText.text = "";
-        ResetLetters(); // Önceki sarılar kalmasın, sadece seçilmeye başlanan sarı olacak
+        IsDragging = true;
+        ClearSelection();
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (!isDragging) return;
+        if (!IsDragging) return;
 
+        // Sürükleme sırasında fare pozisyonundaki harfleri bul
         List<RaycastResult> results = new List<RaycastResult>();
         EventSystem.current.RaycastAll(eventData, results);
 
         foreach (RaycastResult result in results)
         {
             Letter letter = result.gameObject.GetComponent<Letter>();
-            if (letter != null) letter.OnPointerEnter(null);
+            if (letter != null && !selectedLetters.Contains(letter))
+            {
+                OnLetterSelected(letter);
+            }
         }
     }
 
     public void OnPointerUp(PointerEventData eventData)
     {
-        if (isDragging && !string.IsNullOrEmpty(currentWord))
+        if (IsDragging && !string.IsNullOrEmpty(currentWord))
         {
             WordGridManager gridManager = Object.FindAnyObjectByType<WordGridManager>();
             if (gridManager != null)
@@ -107,22 +114,33 @@ public class LetterCircleManager : MonoBehaviour, IPointerDownHandler, IPointerU
                 bool isCorrect = gridManager.CheckWord(currentWord);
                 if (isCorrect)
                 {
+                    // Doğru kelime - harfleri yeşil yap ve devre dışı bırak
                     foreach (var l in selectedLetters)
-                        l.SetCorrect(); // Doğru kelimeyi bulunca yeşil yap
+                    {
+                        l.SetCorrect();
+                        l.SetInteractable(false);
+                    }
+                }
+                else
+                {
+                    // Yanlış kelime - sıfırla
+                    ClearSelection();
                 }
             }
         }
 
-        isDragging = false;
-        currentWord = "";
-        selectedLetters.Clear();
-        if (currentWordText != null)
-            currentWordText.text = "";
+        IsDragging = false;
     }
 
-    public void ResetLetters()
+    public void ClearSelection()
     {
         foreach (var l in lettersList)
             l.ResetSelection();
+
+        selectedLetters.Clear();
+        currentWord = "";
+
+        if (currentWordText != null)
+            currentWordText.text = "";
     }
 }
