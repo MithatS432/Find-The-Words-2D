@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,112 +5,254 @@ using TMPro;
 
 public class WordGridManager : MonoBehaviour
 {
-    [System.Serializable]
-    public class WordData
-    {
-        public string word;
-        [HideInInspector] public bool isFound = false;
-    }
+    [Header("Grid UI")]
+    public Transform wordsParent; // Kelimelerin gösterileceği parent
+    public GameObject wordUIPrefab; // Kelime UI prefab'ı
 
-    public GameObject cellPrefab;
-    public Transform gridParent;
+    [Header("Grid Ayarları")]
+    public GridLayoutGroup gridLayout;
 
-    [HideInInspector] public List<WordData> wordsToFind;
-    [HideInInspector] public int gridWidth = 8;
-    [HideInInspector] public int gridHeight = 8;
+    private List<string> targetWords = new List<string>();
+    private List<string> foundWords = new List<string>();
+    private Dictionary<string, GameObject> wordUIObjects = new Dictionary<string, GameObject>();
 
-    private GameObject[,] gridCells;
-    private int nextRow = 0; // her kelime yeni satıra gidecek
+    [Header("Debug")]
+    public bool showDebugLogs = true;
+
     void Start()
     {
-        // Level verilerini al
-        var levelData = LevelManager.Instance.GetCurrentLevelData();
-
-        // Kelimeleri hazırla
-        wordsToFind = new List<WordData>();
-        foreach (var w in levelData.words)
-        {
-            wordsToFind.Add(new WordData { word = w });
-        }
-
-        gridWidth = levelData.gridSize.x;
-        gridHeight = levelData.gridSize.y;
-
-        CreateGrid();
+        SetupGrid();
     }
 
-    void CreateGrid()
+    void SetupGrid()
     {
-        gridCells = new GameObject[gridWidth, gridHeight];
+        Debug.Log("SetupGrid başladı...");
 
-        GridLayoutGroup gridLayout = gridParent.GetComponent<GridLayoutGroup>();
-        if (gridLayout != null)
-            gridLayout.constraintCount = gridWidth;
+        var levelData = LevelManager.Instance?.GetCurrentLevelData();
 
-        for (int y = 0; y < gridHeight; y++)
+        if (levelData == null)
         {
-            for (int x = 0; x < gridWidth; x++)
-            {
-                GameObject cell = Instantiate(cellPrefab, gridParent);
-                cell.name = $"Cell_{x}_{y}";
-
-                gridCells[x, y] = cell;
-
-                TextMeshProUGUI text = cell.GetComponentInChildren<TextMeshProUGUI>();
-                if (text != null) text.text = "";
-            }
+            Debug.LogError("Level data bulunamadı! Test kelimeler kullanılacak.");
+            CreateTestLevel();
+            return;
         }
-    }
-    void RevealWordInGrid(string word)
-    {
-        if (nextRow >= gridHeight) return;
 
-        int maxX = gridWidth - word.Length;
-        int xStart = Random.Range(0, maxX + 1);
+        // Target kelimeleri ayarla
+        targetWords.Clear();
+        foundWords.Clear();
 
-        for (int i = 0; i < word.Length; i++)
+        if (levelData.words != null)
         {
-            int x = xStart + i;
-            int y = nextRow;
-
-            if (x < gridWidth && y < gridHeight)
+            foreach (string word in levelData.words)
             {
-                TextMeshProUGUI text = gridCells[x, y].GetComponentInChildren<TextMeshProUGUI>();
-                if (text != null)
+                string upperWord = word?.ToUpper().Trim();
+                if (!string.IsNullOrEmpty(upperWord))
                 {
-                    text.text = word[i].ToString();
-                    // Hücre rengini de değiştirebilirsiniz
-                    gridCells[x, y].GetComponent<Image>().color = Color.green;
+                    targetWords.Add(upperWord);
                 }
             }
         }
 
-        nextRow++;
-        Debug.Log("Doğru kelime bulundu: " + word);
-    }
-
-    public bool AreAllWordsFound()
-    {
-        foreach (WordData wordData in wordsToFind)
-            if (!wordData.isFound) return false;
-        return true;
-    }
-    public bool CheckWord(string attemptedWord)
-    {
-        foreach (WordData wordData in wordsToFind)
+        if (targetWords.Count == 0)
         {
-            if (!wordData.isFound && attemptedWord.Equals(wordData.word, System.StringComparison.OrdinalIgnoreCase))
+            Debug.LogWarning("levelData.words boş! Test kelimeleri ekleniyor...");
+            CreateTestLevel();
+            return;
+        }
+
+        if (showDebugLogs)
+        {
+            Debug.Log($"Target words: {string.Join(", ", targetWords)}");
+        }
+
+        CreateWordUI();
+    }
+
+    void CreateWordUI()
+    {
+        // Önceki UI'ları temizle
+        foreach (Transform child in wordsParent)
+        {
+            Destroy(child.gameObject);
+        }
+        wordUIObjects.Clear();
+
+        // Her kelime için UI oluştur
+        foreach (string word in targetWords)
+        {
+            GameObject wordObj = Instantiate(wordUIPrefab, wordsParent);
+            wordObj.name = "Word_" + word;
+
+            // Word UI'ı ayarla
+            SetupWordUI(wordObj, word, false);
+
+            wordUIObjects[word] = wordObj;
+        }
+
+        // Grid layout'u güncelle
+        if (gridLayout != null)
+        {
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(gridLayout.GetComponent<RectTransform>());
+        }
+    }
+
+    void SetupWordUI(GameObject wordObj, string word, bool isFound)
+    {
+        if (wordObj == null)
+        {
+            Debug.LogError("SetupWordUI: wordObj null!");
+            return;
+        }
+
+        // Text component'ini bul ve ayarla
+        TextMeshProUGUI[] texts = wordObj.GetComponentsInChildren<TextMeshProUGUI>();
+
+        if (texts.Length > 0)
+        {
+            texts[0].text = isFound ? word : new string('_', word.Length);
+            texts[0].color = isFound ? Color.green : Color.gray;
+        }
+        else
+        {
+            Debug.LogWarning($"SetupWordUI: {word} için TextMeshProUGUI bulunamadı!");
+        }
+
+        // Background color'ı ayarla
+        Image bg = wordObj.GetComponent<Image>();
+        if (bg != null)
+        {
+            bg.color = isFound ? new Color(0.8f, 1f, 0.8f, 0.5f) : new Color(1f, 1f, 1f, 0.3f);
+        }
+    }
+    void CreateTestLevel()
+    {
+        // Test kelimeler
+        targetWords = new List<string> { "CAR", "CAN", "CAT", "COW", "CUP" };
+        foundWords.Clear();
+
+        if (showDebugLogs)
+            Debug.Log("Test level oluşturuldu: " + string.Join(", ", targetWords));
+
+        // UI'ı oluştur
+        CreateWordUI();
+    }
+
+
+    public bool CheckWord(string inputWord)
+    {
+        if (string.IsNullOrEmpty(inputWord))
+            return false;
+
+        string upperInput = inputWord.ToUpper().Trim();
+
+        if (showDebugLogs)
+        {
+            Debug.Log($"Checking word: '{upperInput}'");
+            Debug.Log($"Target words: {string.Join(", ", targetWords)}");
+            Debug.Log($"Found words: {string.Join(", ", foundWords)}");
+        }
+
+        // Kelime target words'de var mı ve daha önce bulunmamış mı?
+        if (targetWords.Contains(upperInput) && !foundWords.Contains(upperInput))
+        {
+            // Kelimeyi bulunmuş olarak işaretle
+            foundWords.Add(upperInput);
+
+            // UI'ı güncelle
+            if (wordUIObjects.ContainsKey(upperInput))
             {
-                wordData.isFound = true;
-                RevealWordInGrid(wordData.word);
+                SetupWordUI(wordUIObjects[upperInput], upperInput, true);
+            }
 
-                if (AreAllWordsFound())
-                    LevelManager.Instance.OnLevelCompleted();
+            if (showDebugLogs)
+            {
+                Debug.Log($"✅ Correct word found: {upperInput}");
+            }
 
-                return true; // doğru kelime bulundu
+            // Level tamamlandı mı kontrol et
+            CheckLevelCompletion();
+
+            return true;
+        }
+
+        if (showDebugLogs)
+        {
+            if (foundWords.Contains(upperInput))
+                Debug.Log($"❌ Word already found: {upperInput}");
+            else
+                Debug.Log($"❌ Word not in target list: {upperInput}");
+        }
+
+        return false;
+    }
+
+    void CheckLevelCompletion()
+    {
+        if (foundWords.Count >= targetWords.Count)
+        {
+            if (showDebugLogs)
+            {
+                Debug.Log("🎉 Level Completed!");
+            }
+
+            // Level tamamlandı
+            OnLevelCompleted();
+        }
+        else
+        {
+            if (showDebugLogs)
+            {
+                Debug.Log($"Progress: {foundWords.Count}/{targetWords.Count}");
             }
         }
-        return false; // yanlış kelime
     }
 
+    void OnLevelCompleted()
+    {
+        // Level tamamlandığında yapılacaklar
+        Debug.Log("Level Tamamlandı!");
+
+        // Biraz bekle sonra level menu'ye dön
+        Invoke(nameof(ReturnToLevelMenu), 2f);
+    }
+
+    void ReturnToLevelMenu()
+    {
+        LevelManager.Instance.OnLevelCompleted();
+    }
+
+    // Public metodlar - dış sınıflar için
+    public List<string> GetTargetWords()
+    {
+        return new List<string>(targetWords);
+    }
+
+    public List<string> GetFoundWords()
+    {
+        return new List<string>(foundWords);
+    }
+
+    public int GetProgress()
+    {
+        return foundWords.Count;
+    }
+
+    public int GetTotalWords()
+    {
+        return targetWords.Count;
+    }
+
+    public bool IsLevelCompleted()
+    {
+        return foundWords.Count >= targetWords.Count;
+    }
+
+    // Test metodu
+    [System.Diagnostics.Conditional("UNITY_EDITOR")]
+    public void TestCheckWord(string word)
+    {
+        bool result = CheckWord(word);
+        Debug.Log($"Test Result: '{word}' = {result}");
+    }
 }
