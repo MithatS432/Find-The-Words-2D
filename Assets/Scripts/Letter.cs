@@ -2,79 +2,58 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class Letter : MonoBehaviour
+public class Letter : MonoBehaviour, IPointerClickHandler
 {
-    [Header("Renkler")]
-    public Color normalColor = Color.white;
-    public Color selectedColor = Color.yellow;
-    public Color correctColor = Color.green;
-    
-    private char letter;
-    private LetterCircleManager circleManager;
+    private char letter; // 🔹 private yaptık, dışarıdan SetupLetter ile atanacak
     private bool isSelected = false;
     private bool isInteractable = true;
-    
     private Image img;
-    private Button button;
+    private LetterCircleManager circleManager;
 
     void Awake()
     {
         img = GetComponent<Image>();
-        button = GetComponent<Button>();
-        
-        // Button click event'ini kaldır (drag ile kontrol edeceğiz)
-        if (button != null)
-            button.onClick.RemoveAllListeners();
+        img.color = Color.white; // daima beyaz
     }
 
-    public void SetupLetter(char letterChar, LetterCircleManager manager)
+    // 🔹 Harfi ve manager'ı dışarıdan ayarlamak için
+    public void SetupLetter(char l, LetterCircleManager manager)
     {
-        letter = letterChar;
+        letter = l;
         circleManager = manager;
-        ResetSelection();
     }
 
+    // 🔹 Harfi dışarıya döndüren getter
     public char GetLetter()
     {
         return letter;
     }
 
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (!isSelected && isInteractable)
+        {
+            SelectLetter();
+        }
+    }
+
     public void SelectLetter()
     {
-        if (!isInteractable || isSelected) 
-            return;
-
         isSelected = true;
-        
-        if (img != null)
-            img.color = selectedColor;
-
-        // Circle manager'a bildir
-        if (circleManager != null)
-            circleManager.OnLetterSelected(this);
+        img.color = Color.yellow; 
+        circleManager.OnLetterSelected(this);
     }
 
     public void SetCorrect()
     {
-        isSelected = true;
-        isInteractable = false;
-        
-        if (img != null)
-            img.color = correctColor;
-        
-        if (button != null)
-            button.interactable = false;
+        isSelected = false;
+        img.color = Color.white;
     }
 
-    public void SetInteractable(bool interactable)
+    public void ResetSelection()
     {
-        isInteractable = interactable;
-        
-        if (button != null)
-            button.interactable = interactable;
-            
-        if (!interactable && img != null)
-            img.color = correctColor;
+        isSelected = false;
+        img.color = Color.white;
     }
 
     public bool IsInteractable()
@@ -82,21 +61,9 @@ public class Letter : MonoBehaviour
         return isInteractable;
     }
 
-    public void ResetSelection()
+    public void SetInteractable(bool value)
     {
-        if (!isInteractable) 
-            return;
-            
-        isSelected = false;
-        
-        if (img != null)
-            img.color = normalColor;
-    }
-
-    // Debug için
-    void OnValidate()
-    {
-        if (img == null)
-            img = GetComponent<Image>();
+        isInteractable = value;
+        img.color = value ? Color.white : new Color(1,1,1,0.3f); 
     }
 }

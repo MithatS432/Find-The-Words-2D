@@ -111,7 +111,7 @@ public class WordGridManager : MonoBehaviour
         if (texts.Length > 0)
         {
             texts[0].text = isFound ? word : new string('_', word.Length);
-            texts[0].color = isFound ? Color.green : Color.gray;
+            texts[0].color = isFound ? Color.black : Color.gray;
         }
         else
         {

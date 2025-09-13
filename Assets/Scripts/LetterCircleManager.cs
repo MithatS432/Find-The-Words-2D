@@ -184,13 +184,21 @@ public class LetterCircleManager : MonoBehaviour, IPointerDownHandler, IPointerU
     {
         if (isDragging && !string.IsNullOrEmpty(currentWord))
         {
-            Debug.Log($"Kelime kontrol ediliyor: {currentWord}");
-            CheckCurrentWord();
+            WordGridManager gridManager = Object.FindAnyObjectByType<WordGridManager>();
+            if (gridManager != null)
+            {
+                bool isCorrect = gridManager.CheckWord(currentWord);
+                // ✅ Doğru kelime bulunduğunda sadece grid panelde yazılacak
+            }
         }
 
         isDragging = false;
-        Debug.Log("Drag bitti");
+        currentWord = "";
+        selectedLetters.Clear();
+        if (currentWordText != null)
+            currentWordText.text = "";
     }
+
 
     Letter GetLetterAtPosition(Vector2 screenPosition)
     {
