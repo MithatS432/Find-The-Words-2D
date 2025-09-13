@@ -36,6 +36,10 @@ public class LevelManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
+    private void Start()
+    {
+        //PlayerPrefs.DeleteAll(); // Sadece test amaçlı, silinecek
+    }
 
     // Mevcut level verilerini almak için
     public LevelData GetCurrentLevelData()
@@ -66,9 +70,23 @@ public class LevelManager : MonoBehaviour
         int currentLevel = PlayerPrefs.GetInt("CurrentLevel", 1);
         int unlockedLevel = PlayerPrefs.GetInt("UnlockedLevel", 1);
 
+        // Eğer yeni level açıldıysa kaydet
         if (currentLevel + 1 > unlockedLevel)
+        {
             PlayerPrefs.SetInt("UnlockedLevel", currentLevel + 1);
+            PlayerPrefs.Save();
+        }
 
-        SceneManager.LoadScene("LevelMenu"); // Menü sahnesine dön
+        // Eğer bir sonraki level varsa otomatik yükle
+        if (currentLevel < levels.Length)
+        {
+            LoadLevel(currentLevel + 1);
+        }
+        else
+        {
+            // Son level tamamlandıysa menüye dön
+            SceneManager.LoadScene("LevelMenu");
+        }
     }
+
 }
